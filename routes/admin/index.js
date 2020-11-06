@@ -10,10 +10,13 @@ module.exports=app=>{
     const Tag=require('../../models/Tag')
     const Article=require('../../models/Article')
     const Picture=require('../../models/Picture')
+    const Skin=require('../../models/Skin')
+    const Chat=require('../../models/Chat')
+    const FileList=require('../../models/FileList')
+
     const pageFilter=require('../../plugins/pageFilter')
     const auth=async(req,res,next)=>{
         const token=String(req.headers.authorization||'').split(' ').pop()
-        // console.log(token)
         assert(token,401,{msg:'请先登录'})
         jwt.verify(token,app.get('secret'),async(err,decoded)=>{
             if(err){
@@ -22,20 +25,17 @@ module.exports=app=>{
                     msg:'请先登录'
                 })
             }
-            // console.log(decoded)
             req.user=await User.findById(decoded.id)
             if(!req.user)return res.send({
                 code:0,
                 msg:'请先登录'
             })
-            // console.log(req.user)
             await next()
         })
         
     }
     router.get('/zhuce',async(req,res)=>{
         User.remove({}, function (err) { // 筛选条件为空即是表示所有
-            // console.log("success");
         });
         var password=md5('123456')
         var user = new User({
@@ -44,15 +44,41 @@ module.exports=app=>{
         });
         user.save(function (err, res) {
             if (err) {
-                console.log("Error:" + err);
+                // console.log("Error:" + err);
             }
             else {
-                console.log("Res:" + res);
+                // console.log("Res:" + res);
                User.find().then(res=>console.log(res))               
             }
         });
     })
    
+
+    // router.get('/liuyan',async(req,res)=>{
+       
+    //     var chat = new Chat({
+    //         chatName:'小明',
+    //         chatContent:'6666',
+    //         chatWay:'邮箱：1755989501@qq.com',
+    //     });
+    //     chat.save(function (err, res) {
+    //         if (err) {
+    //             console.log("Error:" + err);
+    //         }
+    //         else {
+    //             console.log("Res:" + res);
+    //             Chat.find().then(res=>console.log(res))               
+    //         }
+    //     });
+    // })
+
+
+    router.post('/checklogin',auth,(req,res)=>{
+        return res.send({code:200})
+    })
+    
+
+    //登录
     router.post('/login',async(req,res)=>{   
         const {userName,password}=req.body
         const user= await User.findOne({userName,password:md5(password)})
@@ -72,7 +98,7 @@ module.exports=app=>{
             }
         })
     })
-    
+    //修改密码
     router.post('/changepassword',auth,async(req,res)=>{
         const {oldPassword,userName,newPassword}=req.body
         const user= await User.findOne({userName,password:md5(oldPassword)})
@@ -105,7 +131,8 @@ module.exports=app=>{
         
     })
 
-    //标签管理
+//标签管理
+    //添加标签
     router.post('/addtag',auth,async(req,res)=>{
         var {tagName,type}=req.body
         const t= await  Tag.findOne({tagName})
@@ -135,6 +162,7 @@ module.exports=app=>{
             }
         });
     })
+    //获取标签
     router.get('/tags',auth,async(req,res)=>{  
         var {pageNum,pageSize,query}=req.query
         if(query=='undefined')
@@ -154,8 +182,9 @@ module.exports=app=>{
         res.send({code: 200, data: pageFilter(tags, pageNum, pageSize)})    
         
     })
+    //删除标签
     router.post('/deltag',auth,async(req,res)=>{
-        console.log(req.body)
+        
         const article=await Article.findOne({tags:new RegExp(`^.*${req.body.id}.*$`)})
         if(article)
             return res.send({
@@ -163,7 +192,7 @@ module.exports=app=>{
                 msg:'标签下存在文章，不能删除'
             })
         const tag=await Tag.deleteOne({_id:req.body.id})
-        console.log(tag)
+        
         if(tag.deletedCount>0)
             res.send({
                 code:200,
@@ -177,15 +206,18 @@ module.exports=app=>{
         }
     })
         
-    //文章管理
+//文章管理
+    //添加博客
     router.post('/addarticle',auth,async(req,res)=>{
-        var {title,context,contextText,tags,mdValue}=req.body
+        var {title,context,contextText,tags,mdValue}=req.body.article
+
+        var {imgs}=req.body
         if(title==''||context==''||contextText==''||tags==''||mdValue=='')
             return res.send({
                     code:0,
                     msg:'缺少参数'
                 })
-        Article.create(req.body,function (err, res2) {
+        Article.create(req.body.article,function (err, res2) {
             if (err) {
                 res.send({
                     code:0,
@@ -193,7 +225,12 @@ module.exports=app=>{
                 })
             }
             else {
-                // console.log(res2)
+                for(let x of imgs.split(',')){
+                    FileList.updateOne({filename:x.split('/uploads/')[1]},{useId:res2._id},function(err,res2){
+                        
+                    })
+                }
+                
                 res.send({
                     code:200,
                     data:res2,
@@ -202,7 +239,7 @@ module.exports=app=>{
             }
         });
     })
-
+    //获取博客
     router.get('/articles',auth,async(req,res)=>{  
         var {pageNum,pageSize,query,tagquery}=req.query
         if(query=='undefined')
@@ -222,17 +259,17 @@ module.exports=app=>{
                     article.tagList.push(tagobj) 
             }
         }
-        res.send({code: 200, data: pageFilter(arts, pageNum, pageSize)})
+        res.send({code: 200, data: pageFilter(arts.reverse(), pageNum, pageSize)})
     })
-
+    //删除博客
     router.post('/delarticle',auth,async(req,res)=>{
         var delList=req.body.ids.split(",")
         var delcount=0
         for(let item of delList){
             const {deletedCount}=await Article.deleteOne({_id:item})
+            await FileList.updateMany({useId:item},{useId:''})
             delcount+=deletedCount
         }
-        console.log(delcount)
         if(delcount==delList.length)
             res.send({
                 code:200,
@@ -245,7 +282,7 @@ module.exports=app=>{
         })
         
     })
-    
+    //获取详情
     router.get('/detailarticle',auth,async(req,res)=>{  
        var {id}=req.query
        var article={}
@@ -261,15 +298,21 @@ module.exports=app=>{
             data:article
         })
     })
-
+    //修改博客
     router.post('/editarticle',auth,async(req,res)=>{
-        console.log(req.body)
-        var {title,context,contextText,tags,mdValue,id}=req.body
+        // console.log(req.body)
+        var {title,context,contextText,tags,mdValue,id,imgs}=req.body
         if(title==''||context==''||contextText==''||tags==''||mdValue==''||id=='')
             return res.send({
                     code:0,
                     msg:'缺少参数'
                 })
+        await FileList.updateMany({useId:id},{useId:''})
+        for(let x of imgs.split(',')){
+            // console.log(x.split('/uploads/')[1])
+            FileList.updateOne({filename:x.split('/uploads/')[1]},{useId:id},function(err,res22){
+            })
+        }
         Article.findByIdAndUpdate(id,{title,context,contextText,tags,mdValue,updateTime:Date.now()},function (err, res2) {
             if (err) {
                 res.send({
@@ -287,7 +330,7 @@ module.exports=app=>{
             }
         });
     })
-
+    //置顶博客
     router.post('/totop',auth,async(req,res)=>{
         var {type,id}=req.body
         Article.findByIdAndUpdate(id,{isTop:type},function (err, res2) {
@@ -307,13 +350,34 @@ module.exports=app=>{
             }
         });
     })
-    
-    //相册管理addpicture
-    
+    router.post('/addfile',auth,async(req,res)=>{
+        var {filename}=req.body
+        FileList.create({filename,useId:''},function (err, res2) {
+            if (err) {
+                res.send({
+                    code:0,
+                    msg:'上传文件失败'
+                })
+            }
+            else {
+                // console.log(res2)
+                res.send({
+                    code:200,
+                    data:res2,
+                    msg:'上传文件成功'
+                })             
+            }
+        });
+       
+    })
+
+
+//相册管理addpicture
+    //添加相册
     router.post('/addpicture',auth,async(req,res)=>{
         var {title,tag}=req.body
         
-        console.log(title)
+        
         var colorArray=['#007acc','#f78787','#89b41e','#ffd664']
         var tagColor=!tag?'':colorArray[Math.round(Math.random()*(colorArray.length-1))]
         if(!title)
@@ -329,7 +393,7 @@ module.exports=app=>{
                     })
                 }
                 else {
-                    console.log(res2)
+                    // console.log(res2)
                     res.send({
                         code:200,
                         data:res2,
@@ -338,25 +402,25 @@ module.exports=app=>{
                 }
             });
     })
-    
+    //获取相册
     router.get('/pictures',auth,async(req,res)=>{  
         
         var pictures=await Picture.find({},'count cover createTime tag tagColor title password')
         
-        console.log(pictures)
+        
         res.send({code: 200, data:pictures})
     })
-    
+    //删除相册
     router.post('/delpic',auth,async(req,res)=>{
         var _id=req.body.id
         const {deletedCount}=await Picture.deleteOne({_id,})
-        console.log(deletedCount)
+        
         if(deletedCount>0)
             return res.send({code: 200, msg:'删除成功'})
         else
             return res.send({code: 0, msg:'删除失败'})
     })
-
+    //获取详情
     router.get('/detailpicture',auth,async(req,res)=>{
         var {id}=req.query
         var picture={}
@@ -370,10 +434,10 @@ module.exports=app=>{
             data:picture
         })
     })
-    
+    //添加图片
     router.post('/addlist',auth,async(req,res)=>{
         var {filename,id,count}=req.body
-        console.log(filename,count)
+        
         var picture=await Picture.findById(id)
         var cover=picture.cover==''?('http://localhost:3000/uploads/'+filename.split(',')[0]):picture.cover
         
@@ -397,12 +461,12 @@ module.exports=app=>{
         
        
     })
-
+    //删除图片
     router.post('/dellist',auth,async(req,res)=>{
         var {filename,id,count,delList}=req.body
         var list=delList.split(',')
         var cover=filename!=''?'http://localhost:3000/uploads/'+filename.split(',')[0]:''
-        console.log(cover)
+        
         Picture.findByIdAndUpdate(id,{picDetailList:filename,count,cover},function (err, res2) {
             if (err) {
                 res.send({
@@ -432,7 +496,7 @@ module.exports=app=>{
             
         }
     })
-
+    //更换封面
     router.post('/changecover',auth,async(req,res)=>{
         var {id,cover}=req.body
         Picture.findByIdAndUpdate(id,{cover},function (err, res2) {
@@ -452,12 +516,12 @@ module.exports=app=>{
             }
         });
     })
-
+    //设置相册
     router.post('/editpictures',auth,async(req,res)=>{
         var {id,title,password,tag}=req.body
-        console.log(password)
+        
         var mdpassword=password==''?password:md5(md5(password)+app.get('secret'))
-        console.log(mdpassword)
+        
         Picture.findByIdAndUpdate(id,{title,password:mdpassword,tag},function (err, res2) {
             if (err) {
                 res.send({
@@ -475,9 +539,130 @@ module.exports=app=>{
             }
         });
     })
-    //图片上传
+
+//皮肤管理
+    //获取皮肤
+    router.get('/skins',auth,async(req,res)=>{  
+        var skins=await Skin.find({})
+        // console.log(skins)
+        res.send({code: 200, data:skins})
+    })
+    //删除皮肤
+    router.post('/deluploads',auth,async(req,res)=>{  
+        var {filename}=req.body
+        if(filename!=''){
+            fs.unlinkSync('./uploads/' + filename);
+            res.send({
+                code:200,
+                msg:'删除缓存文件成功'
+            })
+        }
+            
+    })
+    //添加皮肤
+    router.post('/addskin',auth,async(req,res)=>{
+        var {showTime,skinUrl}=req.body
+        
+        Skin.create({showTime,skinUrl},function (err, res2) {
+            if (err) {
+                res.send({
+                    code:0,
+                    msg:'添加皮肤失败'
+                })
+            }
+            else {
+               
+                res.send({
+                    code:200,
+                    data:res2,
+                    msg:'添加皮肤成功'
+                })             
+            }
+        });
+    })
+    //删除皮肤
+    router.post('/delskin',auth,async(req,res)=>{
+        var _id=req.body.id
+        const {deletedCount}=await Skin.deleteOne({_id,})
+        fs.unlinkSync('./uploads/' + req.body.filename);
+        // console.log(deletedCount)
+        if(deletedCount>0)
+            return res.send({code: 200, msg:'删除成功'})
+        else
+            return res.send({code: 0, msg:'删除失败'})
+    })
+
+//留言管理
+    //查询留言
+    router.get('/chats',auth,async(req,res)=>{  
+        var {pageNum,pageSize,queryPeople,queryDate}=req.query
+        // console.log(queryDate)
+        if(queryPeople=='undefined')
+            queryPeople=''
+        
+        var contition = {
+            chatName: new RegExp(`^.*${queryPeople}.*$`,'i'),
+        }
+        if(queryDate!=''&&queryDate!='null'){
+            var start=new Date(queryDate)
+            var year=new Date(queryDate).getFullYear()
+            var month=new Date(queryDate).getMonth()+1
+            var nextday=new Date(queryDate).getDate()+1
+            month=month<10?'0'+month:month
+            nextday=nextday<10?'0'+nextday:nextday
+            var endTime=year+'-'+month+'-'+nextday
+            var end=new Date(endTime)
+            // console.log(start,end)
+            contition['createTime']={$gte: start, $lt: end}
+        }
+        
+        var chats=await Chat.find(contition)
+        res.send({code: 200, data: pageFilter(chats.reverse(), pageNum, pageSize)})
+    })
+    //删除留言
+    router.post('/delchats',auth,async(req,res)=>{
+        var delList=req.body.ids.split(",")
+        var delcount=0
+        for(let item of delList){
+            const {deletedCount}=await Chat.deleteOne({_id:item})
+            delcount+=deletedCount
+        }
+        
+        if(delcount==delList.length)
+            res.send({
+                code:200,
+                msg:'删除成功'
+            })
+        else
+        res.send({
+            code:0,
+            msg:'删除失败'
+        })
+        
+    })
+
+//文件清理
+    //查询文件
+    router.get('/getfilelists',auth,async(req,res)=>{  
+        var lists=await FileList.find({})
+        res.send({code: 200, data:lists})
+    })
+    //删除文件
+    router.get('/clearfile',auth,async(req,res)=>{ 
+        var files=await FileList.find({useId:''})
+        // console.log(files)
+        for(let x of files){
+            fs.unlinkSync('./uploads/' + x.filename);
+        }
+        await FileList.deleteMany({useId:''});
+        res.send({
+            code:200,
+            msg:'清理成功'
+        })
+    })
+//图片上传
     const upload=multer({dest:__dirname+'/../../uploads'})
-    router.post("/upload",upload.single('file'),async(req,res)=>{
+    router.post("/upload",auth,upload.single('file'),async(req,res)=>{
         const file=req.file
         // console.log(file)
         file.url=`http://localhost:3000/uploads/${file.filename}`

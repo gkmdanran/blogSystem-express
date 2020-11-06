@@ -1,5 +1,7 @@
 const express=require("express")
 const app=express()
+var bodyParser = require('body-parser'); 
+app.use(bodyParser.json({ limit: '50mb' }));
 app.set('secret','SDFSDGDSGSD')
 app.use(require('cors')())
 app.use(express.json())
