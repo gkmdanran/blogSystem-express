@@ -301,7 +301,7 @@ module.exports=app=>{
     //修改博客
     router.post('/editarticle',auth,async(req,res)=>{
         // console.log(req.body)
-        var {title,context,contextText,tags,mdValue,id,imgs}=req.body
+        var {title,context,contextText,tags,mdValue,id,imgs,otherhref}=req.body
         if(title==''||context==''||contextText==''||tags==''||mdValue==''||id=='')
             return res.send({
                     code:0,
@@ -313,7 +313,7 @@ module.exports=app=>{
             FileList.updateOne({filename:x.split('/uploads/')[1]},{useId:id},function(err,res22){
             })
         }
-        Article.findByIdAndUpdate(id,{title,context,contextText,tags,mdValue,updateTime:Date.now()},function (err, res2) {
+        Article.findByIdAndUpdate(id,{title,context,otherhref,contextText,tags,mdValue,updateTime:Date.now()},function (err, res2) {
             if (err) {
                 res.send({
                     code:0,
