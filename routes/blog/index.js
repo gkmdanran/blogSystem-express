@@ -44,6 +44,16 @@ module.exports=app=>{
 
         res.send({code: 200, data: pageFilter([...topList.reverse(),...arts.reverse()], pageNum, pageSize)})
     })
+    router.get('/searcharticles',async(req,res)=>{  
+        var {query}=req.query
+        if(query=='undefined')
+            query=''
+        contition = {
+            title: new RegExp(`^.*${query}.*$`,'i'),
+        }
+        var articles=await Article.find(contition,'title')
+        res.send({code: 200, data: articles.reverse()})
+    })
     //最新文章
     router.get('/newarticles',async(req,res)=>{  
         var articles=await Article.find({},'title createTime')
@@ -210,7 +220,30 @@ module.exports=app=>{
         }
             
     })
-
-
+    //查询留言
+    router.get('/chats',async(req,res)=>{  
+        var {pageNum,pageSize}=req.query
+        var chats=await Chat.find({},'chatName chatContent createTime')
+        res.send({code: 200, data: pageFilter(chats.reverse(), pageNum, pageSize)})
+    })
+    router.post('/liuyan',async(req,res)=>{
+        var {chatName,chatWay,chatNumber,chatContent}=req.body
+        if(chatName==''||chatNumber.length>30||chatName.length>10||chatContent.length>100)
+            return res.send({code: 0, msg:'非法操作'})
+        
+        var chat = new Chat({
+            chatName,
+            chatContent,
+            chatWay:chatWay+"："+chatNumber,
+        });
+        chat.save(function (err) {
+            if (err) {
+                return res.send({code: 0, msg:'评论失败,一会儿再试试~'})
+            }
+            else {
+                return res.send({code: 200, msg:'评论成功,谢谢您~'})         
+            }
+        });
+    })
     app.use('/blog/api',router)
 }

@@ -54,23 +54,7 @@ module.exports=app=>{
     })
    
 
-    // router.get('/liuyan',async(req,res)=>{
-       
-    //     var chat = new Chat({
-    //         chatName:'小明',
-    //         chatContent:'6666',
-    //         chatWay:'邮箱：1755989501@qq.com',
-    //     });
-    //     chat.save(function (err, res) {
-    //         if (err) {
-    //             console.log("Error:" + err);
-    //         }
-    //         else {
-    //             console.log("Res:" + res);
-    //             Chat.find().then(res=>console.log(res))               
-    //         }
-    //     });
-    // })
+    
 
 
     router.post('/checklogin',auth,(req,res)=>{
