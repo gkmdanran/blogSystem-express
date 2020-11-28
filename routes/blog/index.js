@@ -12,6 +12,7 @@ module.exports=app=>{
     const Picture=require('../../models/Picture')
     const Skin=require('../../models/Skin')
     const Chat=require('../../models/Chat')
+    const Music=require('../../models/Music')
     const FileList=require('../../models/FileList')
 
     const pageFilter=require('../../plugins/pageFilter')
@@ -230,7 +231,8 @@ module.exports=app=>{
         var {chatName,chatWay,chatNumber,chatContent}=req.body
         if(chatName==''||chatNumber.length>30||chatName.length>10||chatContent.length>100)
             return res.send({code: 0, msg:'非法操作'})
-        
+        var chats=await Chat.find({})
+        if(chats.length>=200)return res.send({code: 0, msg:'留言板已经装不下更多留言啦~'})
         var chat = new Chat({
             chatName,
             chatContent,
@@ -245,5 +247,12 @@ module.exports=app=>{
             }
         });
     })
+
+    router.get('/songs',async(req,res)=>{  
+        
+        var songs=await Music.find({})
+        res.send({code: 200, data:songs})
+    })
+
     app.use('/blog/api',router)
 }

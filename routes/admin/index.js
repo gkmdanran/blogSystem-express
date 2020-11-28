@@ -13,6 +13,7 @@ module.exports=app=>{
     const Skin=require('../../models/Skin')
     const Chat=require('../../models/Chat')
     const FileList=require('../../models/FileList')
+    const Music=require('../../models/Music')
 
     const pageFilter=require('../../plugins/pageFilter')
     const auth=async(req,res,next)=>{
@@ -534,6 +535,7 @@ module.exports=app=>{
     //删除皮肤
     router.post('/deluploads',auth,async(req,res)=>{  
         var {filename}=req.body
+        console.log(filename)
         if(filename!=''){
             fs.unlinkSync('./uploads/' + filename);
             res.send({
@@ -625,6 +627,51 @@ module.exports=app=>{
         
     })
 
+//音乐管理
+    router.post('/addsong',auth,async(req,res)=>{
+        if(req.body.title==''||req.body.url=='')
+            return res.send({
+                code:0,
+                msg:'资源不完整，无法添加'
+            })
+            
+        var music=await Music.find({cloudID:req.body.cloudID})
+        
+        if(music.length>0)
+            return res.send({
+                code:0,
+                msg:'资源已存在，请勿重复添加'
+            })
+        Music.create(req.body,function (err, res2) {
+            if (err) {
+                res.send({
+                    code:0,
+                    msg:'添加音乐失败'
+                })
+            }
+            else {
+            
+                res.send({
+                    code:200,
+                    data:res2,
+                    msg:'添加音乐成功'
+                })             
+            }
+        });
+    })
+    router.get('/songs',auth,async(req,res)=>{  
+        
+        var songs=await Music.find({})
+        res.send({code: 200, data:songs})
+    })
+    router.post('/delsong',auth,async(req,res)=>{
+        await  Music.deleteOne({_id:req.body.id});
+        res.send({
+            code:200,
+            msg:'删除成功'
+        })
+    })
+
 //文件清理
     //查询文件
     router.get('/getfilelists',auth,async(req,res)=>{  
@@ -645,10 +692,26 @@ module.exports=app=>{
         })
     })
 //图片上传
-    const upload=multer({dest:__dirname+'/../../uploads'})
+    // const upload=multer({dest:__dirname+'/../../uploads'})
+    // console.log
+    var storage = multer.diskStorage({
+        destination: function (req, file, cb) {
+          cb(null, __dirname+'/../../uploads')
+        },
+        filename: function (req, file, cb) {
+          var singfileArray = file.originalname.split('.');
+          var fileExtension = singfileArray[singfileArray.length - 1];
+          cb(null, singfileArray[0] + '-' + Date.now() + "." + fileExtension);
+         
+        }
+      })
+      
+      var upload = multer({
+        storage: storage
+      })
     router.post("/upload",auth,upload.single('file'),async(req,res)=>{
         const file=req.file
-        // console.log(file)
+        console.log(file)
         file.url=`http://localhost:3000/uploads/${file.filename}`
         res.send(req.file)
     })
