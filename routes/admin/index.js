@@ -424,7 +424,7 @@ module.exports=app=>{
         var {filename,id,count}=req.body
         
         var picture=await Picture.findById(id)
-        var cover=picture.cover==''?('http://localhost:3000/uploads/'+filename.split(',')[0]):picture.cover
+        var cover=picture.cover==''?('http://101.132.68.0:3000/uploads/'+filename.split(',')[0]):picture.cover
         
         
         Picture.findByIdAndUpdate(id,{picDetailList:filename,count,cover},function (err, res2) {
@@ -450,7 +450,7 @@ module.exports=app=>{
     router.post('/dellist',auth,async(req,res)=>{
         var {filename,id,count,delList}=req.body
         var list=delList.split(',')
-        var cover=filename!=''?'http://localhost:3000/uploads/'+filename.split(',')[0]:''
+        var cover=filename!=''?'http://101.132.68.0:3000/uploads/'+filename.split(',')[0]:''
         
         Picture.findByIdAndUpdate(id,{picDetailList:filename,count,cover},function (err, res2) {
             if (err) {
@@ -469,7 +469,7 @@ module.exports=app=>{
             }
         });
         for(let x of list){
-            var file=x.replace('http://localhost:3000/uploads/','')
+            var file=x.replace('http://101.132.68.0:3000/uploads/','')
             try {
                 fs.unlinkSync('./uploads/' + file);
             } catch (error) {
@@ -712,7 +712,7 @@ module.exports=app=>{
     router.post("/upload",auth,upload.single('file'),async(req,res)=>{
         const file=req.file
         console.log(file)
-        file.url=`http://localhost:3000/uploads/${file.filename}`
+        file.url=`http://101.132.68.0:3000/uploads/${file.filename}`
         res.send(req.file)
     })
 

@@ -12,6 +12,6 @@ require("./plugins/db")(app)
 
 app.listen(3000,()=>{
     console.log("App listening on port 3000")
-    console.log("http://localhost:3000")
+    console.log("http://101.132.68.0:3000")
 })
 module.exports=app
